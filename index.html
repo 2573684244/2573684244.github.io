@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name=format-detection content="telephone=no">
+  <meta name=msapplication-tap-highlight content=no>
+  <meta name=viewport content="user-scalable=no,initial-scale=1,maximum-scale=1,minimum-scale=1,width=device-width">
+  <meta name="description" content="根据“明代的灾荒”项目中的灾荒等级数据，使用echarts开发的可视化效果。">
+  <h1>明代灾荒等级时空数据可视化</h1>
+  <title>明代灾荒等级时空数据可视化</title>
+  <h3>数据来源：胡鹏、唐薇：“明代的灾荒：基于方志文献的灾荒等级数据库（1368-1643）”，地图书（https://www.ditushu.com/book/50/）。</h3>
+  <script src="../js/data.js"></script>
+  <style>
+    body{
+      background: url("../js/1.jpg");
+    }
+    h1 { font-size: 36px; line-height: 40px; margin: 15px 20px; text-align: center;}
+    #chart { position: absolute; top: 70px; left: 0; right: 0; bottom: 0;padding: 20px }
+    @media screen and (max-width: 900px) {
+      h1 { font-size: 5vw; line-height: 7vw; margin: 0; }
+      #chart { padding: 10px }
+    }
+    h3{
+      color:rgb(19, 19, 2);
+      text-align: center;
+      
+    }
+
+  </style>
+</head>
+<body>
+  <div id="chart"><div>
+    <script src="../js/echarts.min.js"></script>
+    <script src="../js/china.js"></script>
+  <script>
+// 处理数据
+const realData = data.results[0]
+const calendarMap = {}
+let levelIndex = 0
+realData.calendar.forEach(item => {
+  let total = 0
+  const level = []
+  realData.city.forEach(city => {
+    const value = realData.level[levelIndex++]
+    level.push({
+      name: city[0],
+      value: [city[2], city[3]].concat(value)
+    })
+    if (value) {
+      total++
+    }
+  })
+  calendarMap[item[0]] = {
+    era: item[1],
+    title: item[2],
+    level,
+    total
+  }
+})
+const calendarList = Object.keys(calendarMap).sort()
+// 生成图表
+const echart = echarts.init(document.getElementById('chart'))
+const wideAspect = window.innerWidth > 900 && window.innerWidth / window.innerHeight > 1.2
+option = {
+  baseOption: {
+    color: '#316bf3',
+    title: [{
+      text: calendarList[0] + ' ' + calendarMap[calendarList[0]].era + ' ' + calendarMap[calendarList[0]].title,
+      left: wideAspect ? 20 : 10,
+      bottom: 150,
+      textStyle: {
+        fontSize: wideAspect ? 60 : 24
+      }
+    }],
+    timeline: {
+      axisType: 'category',
+      autoPlay: true,
+      playInterval: 2000,
+      left: wideAspect ? 20 : 10,
+      right: wideAspect ? 20 : 10,
+      top: null,
+      bottom: 0,
+      width: null,
+      height: 55,
+      symbol: 'none',
+      checkpointStyle: {
+        borderWidth: 2
+      },
+      data: calendarList
+    },
+    visualMap: {
+      type: 'piecewise',
+      pieces: [
+        { value: 5, color: '#e31a1c', symbol: 'circle' },
+        { value: 4, color: '#fc4e2a', symbol: 'circle' },
+        { value: 3, color: '#fd8d3c', symbol: 'circle' },
+        { value: 2, color: '#feb24c', symbol: 'circle' },
+        { value: 1, color: 'blue', symbol: 'circle' }
+      ],
+      orient: 'horizontal',
+      selectedMode: 'none',
+      hoverLink: false,
+      itemWidth: wideAspect ? 14 : 12,
+      textGap: wideAspect ? 10 : 5,
+      seriesIndex: 0,
+      left: wideAspect ? 20 : 10,
+      bottom: wideAspect ? 230 : 190,
+      formatter: value => value + ' 级'
+    },
+    grid: {
+      left: 96,
+      right: 60,
+      top: null,
+      bottom: 48,
+      width: null,
+      height: 55,
+    },
+    geo: {
+      map: 'china',
+      silent: true,
+      bottom: wideAspect ? 150 : 'auto',
+      top: wideAspect ? 10 : 'auto'
+    },
+    tooltip: {
+      trigger: 'axis',
+      padding: 5,
+      borderWidth: 1,
+      axisPointer: {
+        type: 'none'
+      },
+      formatter (obj) {
+        const year = obj[0].name
+        return `${year} ${calendarMap[year].era}<br>${calendarMap[year].title}<br>出现灾荒的地区：<strong>${obj[0].value}</strong> 个`
+      }
+    },
+    xAxis: {
+      type: 'category',
+      show: false,
+      boundaryGap: false,
+      data: calendarList
+    },
+    yAxis: {
+      type: 'value',
+      show: false
+    },
+    series: [
+      {
+        name: calendarList[0],
+        type: 'scatter',
+        coordinateSystem: 'geo',
+        data: calendarMap[calendarList[0]].level,
+        symbolSize: val => val[2] ? (val[2] * 3 + 10) : 0
+      },
+      {
+        type: 'line',
+        showSymbol: false,
+        areaStyle: {},
+        data: calendarList.map(year => calendarMap[year].total),
+        lineStyle: {
+          width: 1
+        },
+        areaStyle: {
+          opacity: 0.25
+        }
+      }
+    ],
+    animationDuration: 1000,
+    animationEasingUpdate: 'quinticInOut'
+  },
+  options: calendarList.map(year => ({
+    title: {
+      show: true,
+      text: year + ' ' + calendarMap[year].era + ' ' + calendarMap[year].title
+    },
+    series: [{
+      name: year,
+      type: 'scatter',
+      coordinateSystem: 'geo',
+      data: calendarMap[year].level,
+      symbolSize: val => val[2] ? (val[2] * 3 + 10) : 0,
+      tooltip: {
+        trigger: 'item',
+        formatter (obj) {
+          const city = obj.name
+          const year = obj.seriesName
+          return `<strong>${city}</strong><br>${year} ${calendarMap[year].era}<br>${calendarMap[year].title}<br>灾荒等级：<strong>${obj.value[2]}</strong> 级`
+        }
+      }
+    }]
+  }))
+}
+echart.setOption(option)
+  </script>
+</body>
+</html>
